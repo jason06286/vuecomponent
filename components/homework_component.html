@@ -128,38 +128,38 @@
 </div>
 
 <div id="app">
-  <select name="" id="" class="form-control mb-3" >
-    <option value="">--- 請選擇城市 ---</option>
+  <select name="" id="" class="form-control mb-3" v-model="select" >
+    <option value="--- 請選擇城市 ---" selected>--- 請選擇城市 ---</option>
     <option v-for="(item, index) in filiterCounty" :key="index" :value="item" >{{item}}</option>
   </select>
   <div>
     <h4>關注城市</h4>
     <div class="card-columns">
-      <weather-card>
-        <i slot="star" class="fas fa-star"></i>
+      <weather-card v-for="(item, index) in followingCounty" :key="index" :local='item' @star-active="followFilter">
+        <i slot="icon" class="fas fa-star"></i>
       </weather-card>
     </div>
   </div>
   
   <hr>
-  <div class="card-columns">
-    <weather-card>
-      <i slot="star" class="far fa-star"></i>
+  <div class="card-columns" >
+    <weather-card v-for="(item, index) in selectCounty" :key="index" :local='item' @star-active="followFilter">
+      <i slot="icon" class="far fa-star"></i>
     </weather-card>
   </div>
 </div>
 <script type="text/x-template" id="card">
-  <div class="card status-aqi2">
-    <div class="card-header">苗栗縣 - 三義
-      <a href="#" class="float-right"><slot name="star" class="far fa-star" ></slot></a>
+  <div class="card" :class="statusColor">
+    <div class="card-header">{{local.County}}-{{local.SiteName}}
+      <a href="#" class="float-right" @click.prevent="emitStart(local.SiteName)"><slot name="icon" class="far fa-star"></slot ></a>
     </div>
     <div class="card-body">
       <ul class="list-unstyled">
-        <li>AQI 指數: 56</li>
-        <li>PM2.5: 8</li>
-        <li>說明: 普通</li>
+        <li>AQI 指數: {{local.AQI}}</li>
+        <li>PM2.5:{{local["PM2.5"]}}</li>
+        <li>說明: {{local.Status}}</li>
       </ul>
-    2018-05-20 16:00
+      {{local.PublishTime}}
     </div>
   </div>
 </script>
@@ -168,21 +168,60 @@
 // API 來源
 // https://opendata.epa.gov.tw/Data/Contents/AQI/
 Vue.component('weather-card',{
-  template:'#card'
+  props:['local'],
+  template:'#card',
+  methods:{
+    emitStart(Site){
+      console.log(Site)
+      this.$emit('star-active', Site);
+    }
+  },
+  computed:{
+    statusColor:function(){
+      switch(this.local.Status){
+        case '普通':
+        return 'status-aqi2';
+        break;
+        case '對敏感族群不健康':
+        return 'status-aqi3';
+        break;
+        case '對所有族群不健康':
+        return 'status-aqi4';
+        break
+        case '非常不健康':
+        return 'status-aqi5';
+        break
+        case '危害':
+        return  'status-aqi6' ;
+        break
+      }
+    }
+  }
 })
 
 var app = new Vue({
   el: '#app',
   data: {
     data: [],
-    location: [],
-    stared: [],
-    filter: '',
-    value:'',
+    following: JSON.parse(localStorage.getItem("storageFollow")) || [], 
+    select:'--- 請選擇城市 ---',
   },
   // 請在此撰寫 JavaScript
   methods: {
-    
+    followFilter(SiteName){
+      let vm = this;
+      console.log(SiteName)
+      console.log(vm.following)
+      let followIndex = vm.following.indexOf(SiteName);
+      console.log(followIndex )
+      if(followIndex === -1){
+        vm.following.push(SiteName);
+      }else{
+        console.log(3)
+        vm.following.splice(followIndex, 1);
+      };
+      localStorage.setItem("storageFollow",JSON.stringify(vm.following));
+    } ,
   },
   computed: {
     filiterCounty(){
@@ -190,12 +229,35 @@ var app = new Vue({
       let all= vm.data.map(function (item) {
         return item.County
       })
+      console.log(all)
       let county=new Set(all)
       return [...county]
     },
-    filtercard(e){
-      let vm=this
-      console.log(e)
+    selectCounty:function(){
+      let vm = this ;
+      console.log(vm.select)
+      if(vm.select == '--- 請選擇城市 ---'){
+        //過濾掉關注中的資料
+        return vm.data.filter(function(item){
+          return (vm.following.indexOf(item.SiteName) === -1);
+        })
+      }else{
+        let selected = [];
+        vm.data.forEach(function(item){
+          if(item.County == vm.select){
+            selected.push(item)
+          }
+        });
+        return selected.filter(function(item){
+          return (vm.following.indexOf(item.SiteName) === -1);
+        });
+      }
+    },
+    followingCounty(){
+      let vm = this;
+      return vm.data.filter(function(item){
+        return (vm.following.indexOf(item.SiteName) !== -1)
+      })
     },
   },
   created(){
@@ -237,7 +299,6 @@ var app = new Vue({
 }
 </style>
 
- 
         </div>
       </div>
     </div>
